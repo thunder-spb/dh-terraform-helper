@@ -1,0 +1,34 @@
+#!/bin/bash
+
+run_linter() {
+  echo -e "\n-=> Checking directory: ${PWD}"
+  if tflint; then
+    echo "-=> Success. Directory: ${PWD}"
+  else
+    echo "-=> Error in Directory: ${PWD}"
+    return 1
+  fi
+}
+
+run_linter_recursive() {
+  local linter_exit=0
+  local overall_exit=0
+  tf_directories=$(find . -name '*.tf' ! -path '*/\.terraform*' -printf '%h\n' | sort -u)
+  for e in ${tf_directories}; do
+    pushd "$e" >/dev/null
+    arg=$(echo "$e" | awk -F'/' '{print $2}')
+    run_linter "$arg"
+    linter_exit=$?
+    popd >/dev/null
+  done
+  return ${linter_exit}
+}
+
+_TARGET=${1:-.}
+_TARGET=$(realpath ${_TARGET})
+
+echo "-> Checking files in '${_TARGET}'"
+
+run_linter_recursive ${_TARGET}
+
+[ $? -eq 0 ] || (echo "-=> tflint found some errors!"; exit 1)
